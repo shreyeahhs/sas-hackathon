@@ -13,16 +13,16 @@ from typing import List, Optional, Tuple
 
 def convert_backend1_data(backend1_output: dict) -> Tuple[List[Candidate], Optional[WeatherSnapshot]]:
     """
-    main function which converts everything at once
+    main function which converts everything everywhere all at once
     
-    Expected backend1 input:
+    expected backend1 input:
     {
         "venues": [........], # Yelp venues
         "events": [......],# Eventbrite events
         "weather": {.....}, # Weather data
     }
     
-    kutput:
+    kaput:
     (candidates, weather) where:
     - candidates: List[Candidate] -> all venues + events
     - weather: WeatherSnapshot or None
@@ -225,7 +225,7 @@ def _convert_clean_event(event: dict) -> Candidate:
 # weather to weathersnapthot
 
 def convert_weather_to_snapshot(weather_data: dict, date: str) -> WeatherSnapshot:
-    """convert Open-Meteo or simplified weather into WeatherSnapshot"""
+    """convert openmetio or simplified weather into weathersnapshot"""
     
     hourly_data = weather_data.get("hourly", [])
     
