@@ -1,0 +1,25 @@
+# Backend Requirements for NightOut Planner
+
+# Web Framework
+fastapi==0.115.12
+uvicorn[standard]==0.34.2
+python-multipart==0.0.20
+
+# HTTP Client (HTTP/2 enabled)
+httpx[http2]==0.27.2
+requests==2.32.3
+
+# Environment Variables
+python-dotenv==1.1.0
+
+# Data Validation
+pydantic==2.11.3
+pydantic-settings==2.9.1
+
+# AI/LLM APIs
+openai==1.54.0
+
+# Note: External APIs are accessed via httpx/requests; HTTP/2 support is enabled via httpx[http2]
+ 
+# HTML parsing
+beautifulsoup4==4.12.3
