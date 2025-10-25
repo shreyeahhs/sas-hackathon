@@ -2,6 +2,9 @@
 module info
 converts backend1 data into backend2 format
 
+function used:
+convert_backend1_data(backend1_output: dict) -> Tuple[List[Candidate], Optional[WeatherSnapshot]]:
+
 """
 
 from backend2 import Candidate, Location, WeatherSnapshot, WeatherHour
@@ -285,7 +288,7 @@ def _convert_clean_weather(weather_data: dict, date: str) -> WeatherSnapshot:
 # internal stuff dont use directly pls
 
 def _calculate_distance_from_center(lat: float, lon: float) -> float:
-    """distance in km from Glasgow center (George Square)"""
+    """distance in km from Glasgow center (taking as center = George Square)"""
     GLASGOW_CENTER_LAT = 55.8642
     GLASGOW_CENTER_LON = -4.2518
     return _haversine(GLASGOW_CENTER_LAT, GLASGOW_CENTER_LON, lat, lon)
