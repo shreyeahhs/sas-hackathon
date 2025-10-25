@@ -130,4 +130,66 @@ class RecommendationResponse:
     itineraries: List[Dict]
 
 
-# next we are going to dis
+
+# next we are going to distribute the weight for the scoring and configure the models
+# sum to 100 when multiplied
+WEIGHTS = {
+    "mood": 30,
+    "price": 20,
+    "rating": 15,
+    "group": 15,
+    "distance": 10,
+    "weather": 10
+}
+
+# price tier mapping for venues
+PRICE_TIER_MAP = {
+    1: 8,
+    2: 12,
+    3: 20,
+    4: 35
+}
+
+# mood to category mapping
+MOOD_CATEGORY_MAP = {
+    "karaoke": {"karaoke", "bar", "private-rooms", "singing"},
+    "fun": {"karaoke", "arcade", "bowling", "darts", "pub-quiz", "bar", "pub"},
+    "chill": {"cocktail", "wine-bar", "gastropub", "cafe", "lounge"},
+    "competitive": {"bowling", "darts", "escape-room", "quiz", "pool", "games"},
+    "live-music": {"live-music", "concert", "gig", "music-venue"},
+    "culture": {"museum", "gallery", "theatre", "comedy", "art"}
+}
+
+# itinerary templates by mood
+ITINERARY_TEMPLATES = {
+    "karaoke": ["bar", "karaoke", "bar"],
+    "fun": ["bar", "arcade|bowling|darts", "bar"],
+    "competitive": ["bar", "bowling|darts|escape-room|quiz", "bar"],
+    "chill": ["gastropub|restaurant", "live-music|comedy", "cocktail|dessert"],
+    "live-music": ["bar", "live-music|concert", "bar"],
+    "culture": ["cafe", "museum|gallery|theatre|comedy", "bar"]
+}
+
+DWELL_TIMES = { # to specify how much time the group would be on average per site
+    "bar": (60, 75),
+    "pub": (60, 75),
+    "karaoke": (75, 90),
+    "bowling": (60, 90),
+    "darts": (60, 90),
+    "escape-room": (60, 75),
+    "quiz": (90, 120),
+    "arcade": (45, 75),
+    "restaurant": (75, 90),
+    "gastropub": (75, 90),
+    "cafe": (45, 60),
+    "cocktail": (60, 75),
+    "live-music": (90, 120),
+    "concert": (90, 150),
+    "gig": (90, 120),
+    "comedy": (75, 105),
+    "museum": (60, 90),
+    "gallery": (45, 75),
+    "theatre": (120, 180),
+    "default": (60, 75)
+}
+
