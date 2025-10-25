@@ -149,7 +149,7 @@ def _convert_clean_venue(venue: dict) -> Candidate:
 # eventbrite to candidate
 
 def convert_eventbrite_to_candidate(event: dict) -> Candidate:
-    """convert an Eventbrite event to Candidate"""
+    """convert an eventbrite event to candidate"""
     
     if "venue" in event and "address" in event.get("venue", {}):
         return __convert_raw_eventbrite(event)
