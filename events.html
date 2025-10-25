@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Events in Glasgow</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Times New Roman", Times, serif;
+            background: #ffffff;
+            color: #000000;
+            min-height: 100vh;
+            padding: 16px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: left;
+            color: #000;
+            margin-bottom: 16px;
+        }
+
+        h1 {
+            font-size: 28px;
+            margin-bottom: 6px;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: #333;
+        }
+
+        .controls {
+            background: #ffffff;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 16px;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        label {
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: #000;
+        }
+
+        select, input[type="text"] {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        select:focus, input[type="text"]:focus {
+            outline: none;
+            border-color: #999;
+        }
+
+        button {
+            padding: 8px 16px;
+            background: #f2f2f2;
+            color: #000;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            align-self: flex-end;
+        }
+
+        button:hover {
+            background: #e6e6e6;
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .stats {
+            background: #ffffff;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 22px;
+            font-weight: bold;
+            color: #000;
+        }
+
+        .stat-label {
+            color: #333;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
+        .loading {
+            text-align: left;
+            color: #000;
+            font-size: 16px;
+            padding: 12px 0;
+        }
+
+        .events-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .event-card {
+            background: #ffffff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 12px;
+            cursor: pointer;
+        }
+
+        .event-card:hover {
+            background: #fafafa;
+        }
+
+        .event-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #000;
+            margin-bottom: 8px;
+            line-height: 1.3;
+        }
+
+        .event-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+
+        .event-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #000;
+            font-size: 14px;
+        }
+
+        .icon { font-size: 16px; }
+
+        .event-category {
+            display: inline-block;
+            background: #efefef;
+            color: #000;
+            padding: 2px 8px;
+            border-radius: 2px;
+            border: 1px solid #ccc;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .event-description {
+            color: #000;
+            line-height: 1.4;
+            margin-bottom: 8px;
+        }
+
+        .event-link {
+            color: #0000EE;
+            text-decoration: underline;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .event-link:hover { text-decoration: none; }
+
+        .no-events {
+            text-align: left;
+            color: #000;
+            font-size: 16px;
+            padding: 12px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .category-filter {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .category-tag {
+            padding: 6px 10px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 2px;
+            cursor: pointer;
+            color: #000;
+            font-weight: 600;
+        }
+
+        .category-tag:hover { background: #f7f7f7; }
+
+        .category-tag.active { background: #efefef; }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 22px; }
+
+            .events-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .controls {
+                flex-direction: column;
+            }
+
+            .control-group {
+                width: 100%;
+            }
+
+            button { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Live Events in Glasgow</h1>
+            <p class="subtitle">Discover what's happening around you today</p>
+        </header>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="categoryFilter">Filter by Category</label>
+                <select id="categoryFilter">
+                    <option value="">All Categories</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label for="venueFilter">Filter by Venue</label>
+                <input type="text" id="venueFilter" placeholder="Enter venue name...">
+            </div>
+            <div class="control-group">
+                <label style="opacity: 0;">Action</label>
+                <button onclick="fetchEvents()">🔍 Search Events</button>
+            </div>
+        </div>
+
+        <div class="stats" id="stats" style="display: none;">
+            <div class="stat">
+                <div class="stat-number" id="totalEvents">0</div>
+                <div class="stat-label">Total Events</div>
+            </div>
+            <div class="stat">
+                <div class="stat-number" id="totalCategories">0</div>
+                <div class="stat-label">Categories</div>
+            </div>
+        </div>
+
+        <div id="loading" class="loading" style="display: none;">
+            Loading events... 🎪
+        </div>
+
+        <div id="eventsContainer" class="events-grid"></div>
+    </div>
+
+    <script>
+        let allEvents = [];
+        let allCategories = [];
+
+        // Fetch events on page load
+        window.onload = () => {
+            fetchEvents();
+        };
+
+        async function fetchEvents() {
+            const loading = document.getElementById('loading');
+            const container = document.getElementById('eventsContainer');
+            const stats = document.getElementById('stats');
+            
+            loading.style.display = 'block';
+            container.innerHTML = '';
+            stats.style.display = 'none';
+
+            try {
+                const categoryFilter = document.getElementById('categoryFilter').value;
+                const venueFilter = document.getElementById('venueFilter').value;
+
+                const response = await fetch('http://localhost:8000/api/events/live', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        category: categoryFilter || null,
+                        venue: venueFilter || null,
+                        today_only: true
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch events');
+                }
+
+                const data = await response.json();
+                allEvents = data.events;
+                allCategories = data.categories;
+
+                // Update category dropdown if it's empty
+                const categorySelect = document.getElementById('categoryFilter');
+                if (categorySelect.options.length === 1) {
+                    allCategories.forEach(cat => {
+                        const option = document.createElement('option');
+                        option.value = cat;
+                        option.textContent = cat;
+                        categorySelect.appendChild(option);
+                    });
+                }
+
+                displayEvents(allEvents);
+                updateStats(data.total_count, allCategories.length);
+
+            } catch (error) {
+                console.error('Error fetching events:', error);
+                container.innerHTML = `
+                    <div class="no-events">
+                        ❌ Failed to load events. Please try again later.
+                    </div>
+                `;
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+
+        function displayEvents(events) {
+            const container = document.getElementById('eventsContainer');
+            
+            if (events.length === 0) {
+                container.innerHTML = `
+                    <div class="no-events">
+                        😔 No events found matching your criteria.
+                        <br>Try adjusting your filters!
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = events.map(event => `
+                <div class="event-card" onclick="window.open('${event.url}', '_blank')">
+                    ${event.image_url ? `<img src="${event.image_url}" alt="${event.title}" style="width: 100%; height: 180px; object-fit: cover; border-radius: 4px; margin-bottom: 8px;">` : ''}
+                    ${Array.isArray(event.categories) && event.categories.length > 0
+                        ? event.categories.map(c => `<span class=\"event-category\">${c}</span>`).join(' ')
+                        : `<span class=\"event-category\">${event.category}</span>`}
+                    <h2 class="event-title">${event.title}</h2>
+                    <div class="event-meta">
+                        <div class="event-meta-item">
+                            <span class="icon">📅</span>
+                            <span>${event.date}</span>
+                        </div>
+                        <div class="event-meta-item">
+                            <span class="icon">📍</span>
+                            <span>${event.venue}</span>
+                        </div>
+                    </div>
+                    <p class="event-description">${event.description}</p>
+                    <a href="${event.url}" class="event-link" target="_blank" onclick="event.stopPropagation()">
+                        Learn More →
+                    </a>
+                </div>
+            `).join('');
+        }
+
+        function updateStats(totalEvents, totalCategories) {
+            const stats = document.getElementById('stats');
+            document.getElementById('totalEvents').textContent = totalEvents;
+            document.getElementById('totalCategories').textContent = totalCategories;
+            stats.style.display = 'flex';
+        }
+
+        // Add enter key support for venue filter
+        document.getElementById('venueFilter').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                fetchEvents();
+            }
+        });
+    </script>
+</body>
+</html>
