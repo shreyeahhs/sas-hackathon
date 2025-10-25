@@ -615,7 +615,7 @@ def try_build_template(
         return None
     # title
     title = generate_itinerary_title(stops, user.moods)
-    # reasons to party hard (joking hehe)
+    # reasons to party hard
     reasons = []
     if total_cost <= user.budget_per_person_gbp:
         reasons.append("within budget")
