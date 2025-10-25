@@ -39,7 +39,7 @@ export default function ChatFloatingWindow({
           You are speaking with <b>SAS Travel Advisor</b>
         </span>
         <button
-          onClick={() => setMinimized((m) => !m)}
+          onClick = {() => setMinimized((m) => !m)}
           title={minimized ? "Restore" : "Minimize"}
           style={{
             background: "transparent",
@@ -49,7 +49,7 @@ export default function ChatFloatingWindow({
             cursor: "pointer",
             lineHeight: 1,
           }}
-          onClick={(e) => {
+          onClick = {(e) => {
             e.stopPropagation(); // prevent the click will affect the parent div
             setMinimized(!minimized);
           }}
