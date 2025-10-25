@@ -62,8 +62,6 @@ export default function ChatWidget() {
           title="Chat"
           aria-label="Open chat"
           size="25"
-          justify-content="center"
-          align-items="center"
         >
           {<BsFillChatRightDotsFill />}
         </button>
@@ -154,11 +152,12 @@ const floatBtnStyle = {
   height: 56,
   borderRadius: "50%",
   border: "none",
-  background: "#0078d4",
+  background: "rgba(57, 32, 133, 1)",
   color: "#fff",
-  fontSize: 22,
+  fontSize: 25,
   boxShadow: "0 6px 18px rgba(0,0,0,.2)",
   cursor: "pointer",
+  alignItems:"center",
 };
 
 const chatPanelStyle = {
@@ -173,7 +172,7 @@ const chatPanelStyle = {
 };
 
 const titleBarStyle = {
-  background: "#0078d4",
+  background: "#604ca0ff",
   color: "#fff",
   display: "flex",
   alignItems: "center",
