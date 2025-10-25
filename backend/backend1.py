@@ -87,6 +87,11 @@ def get_weather(lat=55.8642, lon=-4.2518):
     data = response.json()
     return data.get("current_weather", {}).get("weathercode", "Clear")
 
+# Caching
+@lru_cache(maxsize=32)
+def cached_places(location, term):
+    return get_google_places(location, term)
+
 # Routes for endpoints
 @app.get("/")
 def home ():
