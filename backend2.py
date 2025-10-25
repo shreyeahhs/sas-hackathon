@@ -22,7 +22,7 @@ This module handles:
     backend 1 will send 50 bars + 20 events + rainy weather
 
     THIS MODULE RECEIVES IT AND GIVES BACK:
-    Top 10: Super Trouper bar (score 86), Dancing Queen (82), etc
+    Top 10: Super trouper bar (score 86), Dancing queen (82), etc
     Itinerary: Bar 19:00 -> Karaoke 20:15 -> Drinks 22:00
 """
 
@@ -42,8 +42,8 @@ class Location:
 
 @dataclass
 class UserRequest:
-    date: str  # year - month - day <- important <- date format
-    start_time: str  # "HH:MM" (hours:minutes)
+    date: str  # year-month-day <- important <- date format
+    start_time: str  # hours:minutes
     duration_minutes: int
     group_size: int
     budget_per_person_gbp: float
@@ -64,14 +64,14 @@ class Candidate:
     indoor: bool
     outdoor: bool = False
     
-    # venue parameters
+    # venue case
     price_tier: Optional[int] = None
     rating: Optional[float] = None
     reviews: Optional[int] = None
     open_hours: Optional[Dict[str, List[List[int]]]] = None
     capacity_hint: Optional[int] = None
     
-    # event parametes
+    # event cse
     price_min: Optional[float] = None
     price_max: Optional[float] = None
     start: Optional[str] = None  # ISO format!!!!
@@ -128,4 +128,6 @@ class RecommendationResponse:
     generated_at: str
     top: List[Dict]
     itineraries: List[Dict]
-    
+
+
+# next we are going to dis
