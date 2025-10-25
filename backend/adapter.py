@@ -364,7 +364,7 @@ def _infer_event_categories(event_name: str) -> List[str]:
 
 
 # testing 
-
+"""
 if __name__ == "__main__":
     print("testing conversions\n")
     
@@ -449,3 +449,4 @@ if __name__ == "__main__":
         print(f"   - {c.name} ({c.type}), categories: {c.categories}")
     
     print("\nall tests passed")
+"""
