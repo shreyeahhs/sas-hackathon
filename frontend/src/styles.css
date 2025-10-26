@@ -1,0 +1,354 @@
+:root{
+  --bg: #0b0d12;
+  --card: #12151d;
+  --muted: #9aa3b2;
+  --text: #e7ecf3;
+  --brand1: #7c3aed;
+  --brand2: #00e1ff;
+}
+*{box-sizing:border-box}
+html,body,#root{height:100%}
+body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;background:radial-gradient(1200px 800px at 10% -10%, rgba(0,225,255,0.15), transparent 60%), radial-gradient(900px 700px at 120% 10%, rgba(124,58,237,0.15), transparent 60%), var(--bg); color:var(--text)}
+
+.container{max-width:1200px;margin:0 auto;padding:24px}
+.page{padding-top:20px}
+.fab-safe-bottom{padding-bottom:96px}
+
+/* Header bar with consistent sizing */
+.header-bar{position:sticky;top:0;z-index:10;backdrop-filter:saturate(180%) blur(10px);background:rgba(15,18,24,0.6);border-bottom:1px solid #222}
+.header-inner{display:flex;align-items:center;justify-content:space-between;gap:12px}
+
+/* Top header for branding and AI button */
+.top-header{position:sticky;top:0;z-index:20;backdrop-filter:saturate(180%) blur(10px);background:rgba(15,18,24,0.85);border-bottom:1px solid #2b3242;padding:12px 0}
+.top-header-inner{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.brand-section{display:flex;flex-direction:column;gap:2px}
+.brand-name{font-size:26px;font-weight:900;line-height:1;display:flex;align-items:baseline;gap:4px}
+.brand-tagline{font-size:12px;color:var(--muted);line-height:1}
+.ai-button{display:flex;align-items:center;gap:6px;padding:10px 16px}
+.ai-icon{font-size:16px}
+
+/* Special styling for the Let's in GlasLet'sgow */
+.brand-lets{color:#facc15;text-shadow:0 0 10px rgba(250,204,21,0.35);font-weight:900}
+
+.section-title{text-align:center;margin:0 0 16px}
+.section-subtitle{color:var(--muted);text-align:center;margin-bottom:20px}
+.section{margin-bottom:20px}
+
+.hero{display:flex;flex-direction:column;align-items:center;text-align:center;padding:80px 0 40px;gap:16px}
+.hero h1{font-size:48px;line-height:1.1;margin:0;background:linear-gradient(90deg,var(--brand2),#a78bfa,var(--brand1));-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{color:var(--muted);max-width:780px}
+.actions{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:8px}
+.button{background:linear-gradient(90deg,var(--brand2),var(--brand1));padding:12px 18px;border:none;border-radius:12px;color:#081018;font-weight:700;cursor:pointer}
+.button.secondary{background:#1a1f2b;color:#fff;border:1px solid #2b3242}
+.button:active{transform:translateY(1px)}
+.button:hover{filter:brightness(1.05)}
+
+.gradient-text{background:linear-gradient(90deg,var(--brand2),#a78bfa,var(--brand1));-webkit-background-clip:text;background-clip:text;color:transparent}
+
+.marquee{overflow:hidden;white-space:nowrap;border:1px solid #2b3242;border-radius:12px;padding:10px;background:#0e121a}
+.marquee-track{display:inline-block;animation:marquee 30s linear infinite; padding-right:40px}
+.marquee-item{display:inline-flex;align-items:center;gap:8px;background:#151a24;border:1px solid #2b3242;color:#c8d2e0;padding:6px 10px;border-radius:999px;margin:6px}
+@keyframes marquee{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+
+.marquee-container{position:relative;overflow:hidden}
+.marquee-track-cards{display:flex;gap:16px;animation:marquee-cards 60s linear infinite;will-change:transform}
+.marquee-card{min-width:220px;max-width:220px;background:var(--card);border:1px solid #2b3242;border-radius:10px;overflow:hidden;flex-shrink:0;cursor:pointer;transition:transform 0.2s}
+.marquee-card:hover{transform:translateY(-4px)}
+@keyframes marquee-cards{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+
+.marquee-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+
+.filters{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin:24px 0}
+.filters .group{display:flex;gap:8px;align-items:center}
+.filters input,.filters select{background:#0f1420;border:1px solid #2b3242;color:#e7ecf3;padding:10px 12px;border-radius:10px}
+
+/* Standalone input and select styling for filter bar */
+input[type="text"],input[type="search"],input:not([type]),select{background:#0f1420;border:1px solid #2b3242;color:#e7ecf3;padding:10px 12px;border-radius:10px;font-family:inherit;font-size:14px;transition:border-color 0.2s ease}
+input:focus,select:focus{outline:none;border-color:#3a4154}
+select{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%239aa3b2' d='M6 9L1 4h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:32px}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.card{background:var(--card);border:1px solid #2b3242;border-radius:16px;overflow:hidden;transition:transform .2s ease, box-shadow .2s ease, border-color .2s ease}
+.card:hover{transform:translateY(-6px);box-shadow:0 18px 40px rgba(0,0,0,.35), 0 0 0 1px rgba(255,255,255,.03) inset;border-color:#3a4154}
+.card img{width:100%;height:160px;object-fit:cover}
+.card .content{padding:12px}
+.card .title{font-weight:700;margin:6px 0}
+.card .meta{font-size:12px;color:var(--muted)}
+.card .desc{font-size:13px;color:#c8d2e0;min-height:38px}
+
+/* NightOut Score Badge - Team Activity Metric */
+.score-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:6px 10px;
+  border-radius:999px;
+  background:rgba(0,0,0,0.3);
+  border:2px solid;
+  margin-bottom:8px;
+  font-size:12px;
+  font-weight:700;
+  backdrop-filter:blur(8px);
+}
+.score-emoji{
+  font-size:14px;
+  line-height:1;
+}
+.score-label{
+  color:var(--text);
+  letter-spacing:0.02em;
+}
+.score-value{
+  background:rgba(255,255,255,0.15);
+  padding:2px 6px;
+  border-radius:999px;
+  color:var(--text);
+  font-size:11px;
+  min-width:24px;
+  text-align:center;
+}
+
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+.chip{background:rgba(255,255,255,.04);border:1px solid #2b3242;color:#c8d2e0;padding:4px 8px;border-radius:999px;font-size:11px}
+
+.pagination{display:flex;gap:8px;justify-content:center;margin:20px 0}
+.pagination button{background:#0f1420;border:1px solid #2b3242;color:#e7ecf3;padding:8px 12px;border-radius:8px;cursor:pointer}
+.pagination .active{background:linear-gradient(90deg,var(--brand2),var(--brand1));color:#081018;border:none}
+
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:50}
+.modal{background:#0f1420;border:1px solid #2b3242;border-radius:16px;max-width:640px;width:94%;padding:20px}
+.modal h3{margin-top:0}
+.badge{background:#151a24;border:1px solid #2b3242;color:#c8d2e0;padding:8px 10px;border-radius:12px;cursor:pointer}
+.badge.selected{background:linear-gradient(90deg,var(--brand2),var(--brand1));color:#081018;border:none}
+
+/* --- AI chat styled variants (inspired by shadcn/ui aesthetics) --- */
+.glassmorphism{background:rgba(15,18,24,0.7)!important;backdrop-filter:saturate(180%) blur(18px)}
+.chat-modal{max-width:800px;width:94%;padding:16px;height:80vh;display:flex;flex-direction:column}
+.gradient-primary{background:linear-gradient(135deg,var(--brand2),#a78bfa,var(--brand1))}
+.gradient-secondary{background:linear-gradient(135deg,rgba(0,225,255,.15),rgba(124,58,237,.15))}
+.shadow-bubble{box-shadow:0 20px 40px rgba(0,0,0,.35),0 0 0 1px rgba(255,255,255,.03) inset}
+.glow-secondary{box-shadow:0 0 0 0 rgba(0,225,255,.5)}
+@keyframes glowPulse{0%{box-shadow:0 0 0 0 rgba(0,225,255,.5)}70%{box-shadow:0 0 0 16px rgba(0,225,255,0)}100%{box-shadow:0 0 0 0 rgba(0,225,255,0)}}
+.animate-glow-pulse{animation:glowPulse 2.4s ease-out infinite}
+@keyframes scaleIn{0%{transform:scale(.95);opacity:0}100%{transform:scale(1);opacity:1}}
+.animate-scale-in{animation:scaleIn .2s ease-out}
+
+.chat-header{padding:12px 14px;border-radius:12px;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;border:1px solid #2b3242}
+.chat-title{display:flex;align-items:center;gap:8px;font-weight:700}
+.chat-actions .button.ghost{background:transparent;border:1px solid #2b3242;color:#e7ecf3;border-radius:999px;padding:6px 8px}
+.chat-actions .button.ghost:hover{background:rgba(255,255,255,.06)}
+
+.chat-messages{flex:1;overflow-y:auto;background:#0b0d12;border-radius:12px;padding:14px;margin-bottom:12px;border:1px solid #2b3242}
+.chat-row{display:flex;margin-bottom:12px}
+.chat-row.user{justify-content:flex-end}
+.chat-row.assistant{justify-content:flex-start}
+.bubble{max-width:80%;padding:12px;border-radius:16px}
+.bubble.user{background:linear-gradient(135deg,var(--brand2),var(--brand1));color:#081018}
+.bubble.assistant{background:var(--card);border:1px solid #2b3242}
+.bubble .meta{font-size:12px;color:var(--muted);margin-top:4px}
+
+.chat-quick{padding:10px;border:1px solid #2b3242;border-radius:12px;background:rgba(255,255,255,.03);margin-bottom:8px}
+.badge.outline{background:transparent;border:1px solid #2b3242;color:#c8d2e0}
+
+.chat-inputbar{display:flex;gap:8px}
+.chat-input{flex:1;border:1px solid #2b3242;background:rgba(255,255,255,.04);color:#e7ecf3;padding:10px 12px;border-radius:16px}
+.button.icon{border-radius:999px;width:42px;height:42px;padding:0;display:flex;align-items:center;justify-content:center}
+
+/* Floating chat button */
+.chat-fab{position:fixed;bottom:24px;right:24px;width:64px;height:64px;border-radius:999px;border:none;color:#081018;font-size:24px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.chat-fab:hover{transform:translateY(-2px);filter:brightness(1.08)}
+
+/* Hero header with background image */
+.hero-header{
+  background:linear-gradient(to right, rgba(12,14,20,0.85) 0%, rgba(20,24,35,0.75) 100%),
+  url('https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=1600&q=80');
+  background-size:cover;
+  background-position:center;
+  background-repeat:no-repeat;
+  text-align:center;
+  min-height:60vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:40px 20px;
+  position:relative;
+  border-bottom:2px solid #2b3242;
+}
+.hero-content{max-width:800px;margin:0 auto}
+.hero-title{
+  font-size:48px;
+  font-weight:900;
+  margin:0 0 20px;
+  background:linear-gradient(135deg,var(--brand2),#a78bfa,var(--brand1));
+  -webkit-background-clip:text;
+  background-clip:text;
+  color:transparent;
+  text-shadow:0 2px 10px rgba(0,225,255,0.3);
+}
+.hero-subtitle{
+  font-size:18px;
+  color:#c8d2e0;
+  margin:0 0 32px;
+  line-height:1.6;
+  text-shadow:0 1px 3px rgba(0,0,0,0.5);
+}
+.hero-cta{
+  padding:14px 28px;
+  font-size:16px;
+  font-weight:700;
+  box-shadow:0 8px 24px rgba(0,225,255,0.25);
+}
+.hero-cta:hover{
+  transform:translateY(-2px);
+  box-shadow:0 12px 32px rgba(0,225,255,0.35);
+}
+
+/* Weather Banner */
+.weather-banner{
+  background:rgba(15,18,24,0.9);
+  border-bottom:1px solid #2b3242;
+  padding:12px 0;
+  backdrop-filter:blur(10px);
+}
+.weather-header{
+  margin-bottom:12px;
+}
+.weather-date{
+  margin:0;
+  font-size:16px;
+  font-weight:600;
+  color:var(--text);
+  opacity:0.9;
+}
+.weather-content{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:20px;
+  flex-wrap:wrap;
+}
+.weather-left{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+.weather-icon{
+  font-size:32px;
+  line-height:1;
+}
+.weather-info{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+.weather-temp{
+  font-size:20px;
+  font-weight:700;
+  color:var(--text);
+  line-height:1;
+}
+.weather-condition{
+  font-size:13px;
+  color:var(--muted);
+  line-height:1;
+}
+.weather-recommendation{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:8px 16px;
+  border-radius:999px;
+  background:rgba(255,255,255,0.04);
+  border:1px solid #2b3242;
+}
+.recommendation-emoji{
+  font-size:20px;
+  line-height:1;
+}
+.recommendation-text{
+  font-size:14px;
+  font-weight:500;
+  color:var(--text);
+}
+
+/* Weather banner variants based on conditions */
+.weather-rain .weather-recommendation{
+  background:rgba(59,130,246,0.15);
+  border-color:rgba(59,130,246,0.3);
+}
+.weather-outdoor .weather-recommendation{
+  background:rgba(34,197,94,0.15);
+  border-color:rgba(34,197,94,0.3);
+}
+.weather-neutral .weather-recommendation{
+  background:rgba(251,191,36,0.15);
+  border-color:rgba(251,191,36,0.3);
+}
+
+/* Hourly forecast timeline */
+.hourly-forecast{
+  margin-top:16px;
+  padding-top:16px;
+  border-top:1px solid #2b3242;
+}
+.hourly-scroll{
+  display:flex;
+  gap:16px;
+  overflow-x:auto;
+  overflow-y:hidden;
+  padding:8px 0;
+  scrollbar-width:thin;
+  scrollbar-color:#2b3242 transparent;
+}
+.hourly-scroll::-webkit-scrollbar{
+  height:6px;
+}
+.hourly-scroll::-webkit-scrollbar-track{
+  background:transparent;
+}
+.hourly-scroll::-webkit-scrollbar-thumb{
+  background:#2b3242;
+  border-radius:3px;
+}
+.hourly-scroll::-webkit-scrollbar-thumb:hover{
+  background:#3a4154;
+}
+.hourly-item{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:6px;
+  min-width:70px;
+  padding:8px 12px;
+  background:rgba(255,255,255,0.03);
+  border:1px solid #2b3242;
+  border-radius:12px;
+  flex-shrink:0;
+}
+.hourly-time{
+  font-size:12px;
+  color:var(--muted);
+  font-weight:500;
+  white-space:nowrap;
+}
+.hourly-icon{
+  font-size:24px;
+  line-height:1;
+}
+.hourly-temp{
+  font-size:15px;
+  font-weight:700;
+  color:var(--text);
+}
+
+@media (max-width: 768px) {
+  .weather-content{
+    flex-direction:column;
+    align-items:flex-start;
+  }
+  .weather-recommendation{
+    width:100%;
+    justify-content:center;
+  }
+}
+

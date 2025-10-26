@@ -1,6 +1,4 @@
-# BACKEND 3 - API and Chatbot
-# FastAPI endpoints with OpenAI chatbot integration
-# -------------------------------------------------------------------------
+# api
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -58,6 +56,13 @@ app.add_middleware(
 
 # Initialize event scraper
 event_scraper = GlasgowEventScraper()
+# Standardize cache location to repo root so frontend/backends share the same CSV
+try:
+    repo_root = Path(__file__).resolve().parent.parent
+    event_scraper.CACHE_FILE = str(repo_root / "events_cache.csv")
+    print(f"[Backend] Using events cache at: {event_scraper.CACHE_FILE}")
+except Exception:
+    pass
 
 
 # Environment variables
@@ -77,6 +82,9 @@ chat_sessions = {}
 provider_failures: Dict[str, Dict[str, Any]] = {
     "foursquare": {"count": 0, "skip_until": None}
 }
+
+# Feature flag: restrict chatbot to recommend ONLY events present in CSV cache
+ONLY_CSV_RECOMMENDATIONS = os.getenv("ONLY_CSV_RECOMMENDATIONS", "true").strip().lower() in ("1", "true", "yes", "y")
 
 def _should_skip_provider(name: str) -> bool:
     entry = provider_failures.get(name)
@@ -571,9 +579,17 @@ def _parse_gpt_json_array(raw: str) -> Optional[List[Any]]:
 def get_or_create_session(session_id: Optional[str] = None) -> tuple[str, ConversationState]:
     """Get existing session or create new one"""
     if session_id and session_id in chat_sessions:
+        print(f"Found existing session: {session_id}")
         return session_id, chat_sessions[session_id]
     
-    new_session_id = str(uuid.uuid4())
+    # Use the provided session_id if given, otherwise create new UUID
+    if session_id:
+        new_session_id = session_id
+        print(f"Creating new session with provided ID: {new_session_id}")
+    else:
+        new_session_id = str(uuid.uuid4())
+        print(f"Creating new session with generated UUID: {new_session_id}")
+    
     chat_sessions[new_session_id] = ConversationState()
     return new_session_id, chat_sessions[new_session_id]
 
@@ -594,6 +610,33 @@ def extract_mood_from_message(message: str) -> Optional[List[str]]:
             moods.append(mood)
     
     return moods if moods else None
+
+def extract_freeform_moods(message: str) -> Optional[List[str]]:
+    """Fallback: interpret any natural-language mood words/phrases as custom moods.
+    Examples:
+      "Something artsy and cozy" -> ["artsy", "cozy"]
+      "quirky, outdoorsy, photogenic" -> ["quirky", "outdoorsy", "photogenic"]
+    """
+    # Normalize whitespace and punctuation
+    text = message.strip().lower()
+    if not text:
+        return None
+    # Remove leading prompt fillers
+    text = re.sub(r"^(i\s*(am|'m)\s*|we\s*are\s*|i\s*feel\s*|feeling\s*|i\s*want\s*|looking\s*for\s*)", "", text)
+    # Split by commas and conjunctions
+    parts = re.split(r"[,/]|\band\b|\bor\b|\bbut\b", text)
+    moods = []
+    for p in parts:
+        token = re.sub(r"[^a-z0-9\-\s]", "", p).strip()
+        if token:
+            # Keep short phrases (max 3 words) as a single mood label
+            words = token.split()
+            if len(words) <= 3:
+                moods.append(" ".join(words))
+            else:
+                # If very long, keep first two words to avoid noisy labels
+                moods.append(" ".join(words[:2]))
+    return [m for m in moods if m][:5] or None
 
 def extract_number_from_message(message: str) -> Optional[int]:
     """Extract numbers from message"""
@@ -1157,8 +1200,9 @@ def get_events_summary_for_gpt(max_events: int = 50) -> str:
         return "Events data temporarily unavailable."
 
 async def get_combined_recommendations_with_gpt(state: ConversationState, user_query: str) -> tuple[str, List[Dict[str, Any]], List[Dict[str, Any]]]:
-    """Use GPT to recommend both events and venues based on user preferences
+    """Use GPT to recommend events (and optionally venues) based on user preferences.
     Returns: (text_response, formatted_events, formatted_venues)
+    When ONLY_CSV_RECOMMENDATIONS is True, only events from the CSV cache are recommended (no venues).
     """
     if not client:
         return "AI recommendations unavailable.", [], []
@@ -1177,7 +1221,30 @@ async def get_combined_recommendations_with_gpt(state: ConversationState, user_q
     if state.seen_event_titles:
         already_shown = f"\n\nEvents ALREADY SHOWN (do NOT recommend these again):\n" + "\n".join(f"- {title}" for title in state.seen_event_titles[-10:])  # Show last 10
     
-    system_prompt = f"""You are a Glasgow nightlife and events expert. You have access to:
+    if ONLY_CSV_RECOMMENDATIONS:
+        system_prompt = f"""You are a Glasgow nightlife and events expert. You have access to:
+1. Live events happening today in Glasgow
+
+User preferences:
+- Mood: {state.mood or 'not specified'}
+- Group size: {state.group_size or 'not specified'}
+- Budget per person: £{state.budget_per_person or 'not specified'}
+- Location: {state.location}
+- Time: {state.start_time}
+
+{events_summary}{already_shown}
+
+IMPORTANT: Recommend ONLY events from the list above. Use EXACT event titles as they appear. Do NOT recommend venues or venue types.
+
+Format your response as JSON:
+{{
+    "text_response": "Friendly explanation of recommendations",
+    "recommended_events": ["Exact Event Title 1", "Exact Event Title 2"]
+}}
+
+Keep recommendations relevant to their mood, budget, and group size. Recommend 2-4 events maximum."""
+    else:
+        system_prompt = f"""You are a Glasgow nightlife and events expert. You have access to:
 1. Live events happening today in Glasgow
 2. Venue search capabilities via Google Places API
 
@@ -1198,9 +1265,9 @@ IMPORTANT: Do NOT recommend any events from the "ALREADY SHOWN" list above.
 
 Format your response as JSON:
 {{
-  "text_response": "Friendly explanation of recommendations",
-  "recommended_events": ["Exact Event Title 1", "Exact Event Title 2"],
-  "venue_search_queries": ["venue type 1", "venue type 2"]
+    "text_response": "Friendly explanation of recommendations",
+    "recommended_events": ["Exact Event Title 1", "Exact Event Title 2"],
+    "venue_search_queries": ["venue type 1", "venue type 2"]
 }}
 
 Keep recommendations relevant to their mood, budget, and group size. Recommend 2-4 events maximum."""
@@ -1220,7 +1287,7 @@ Keep recommendations relevant to their mood, budget, and group size. Recommend 2
         result = json.loads(response.choices[0].message.content or "{}")
         text_response = result.get("text_response", "Here are some suggestions!")
         recommended_event_titles = result.get("recommended_events", [])
-        venue_queries = result.get("venue_search_queries", [])
+        venue_queries = result.get("venue_search_queries", []) if not ONLY_CSV_RECOMMENDATIONS else []
         
         print(f"GPT recommended {len(recommended_event_titles)} events and {len(venue_queries)} venue types")
         print(f"Event titles: {recommended_event_titles}")
@@ -1277,44 +1344,41 @@ Keep recommendations relevant to their mood, budget, and group size. Recommend 2
                 if len(formatted_events) >= 4:
                     break
         
-        # Search for venues based on GPT's recommendations
-        # Use direct Google search to avoid redundant GPT calls
-        all_venues = []
-        seen_place_ids = set()
-        
-        for query in venue_queries[:3]:  # Limit to 3 searches
-            try:
-                # Use search_google_places directly instead of search_venues
-                # to avoid the "gptgoogle" provider making another GPT call
-                venues = await search_google_places(
-                    state.location,
-                    query,
-                    limit=5,
-                    lat=state.location_lat,
-                    lon=state.location_lng,
-                    prefs=state.preferences
-                )
-                # Dedupe by place_id
-                for v in venues:
-                    place_id = v.get('place_id')
-                    if place_id and place_id not in seen_place_ids:
-                        seen_place_ids.add(place_id)
-                        all_venues.append(v)
-            except Exception as e:
-                print(f"Error searching venues for '{query}': {e}")
-        
-        # Rank and select venues
+        # Rank and select venues (skipped if ONLY_CSV_RECOMMENDATIONS)
         formatted_venues = []
-        if all_venues:
-            print(f"Found {len(all_venues)} total venues before ranking")
-            ranked = rank_and_filter_venues(state, all_venues)
-            print(f"After ranking: {len(ranked)} venues")
-            selected = _select_new_venues(state, ranked, desired=5)
-            print(f"Selected {len(selected)} venues after deduplication")
-            formatted_venues = [format_venue_for_chat(v) for v in selected]
-            print(f"Formatted {len(formatted_venues)} venues for display")
-        else:
-            print("No venues found from Google Places")
+        if not ONLY_CSV_RECOMMENDATIONS:
+            # Search for venues based on GPT's recommendations
+            # Use direct Google search to avoid redundant GPT calls
+            all_venues = []
+            seen_place_ids = set()
+            for query in venue_queries[:3]:  # Limit to 3 searches
+                try:
+                    venues = await search_google_places(
+                        state.location,
+                        query,
+                        limit=5,
+                        lat=state.location_lat,
+                        lon=state.location_lng,
+                        prefs=state.preferences
+                    )
+                    # Dedupe by place_id
+                    for v in venues:
+                        place_id = v.get('place_id')
+                        if place_id and place_id not in seen_place_ids:
+                            seen_place_ids.add(place_id)
+                            all_venues.append(v)
+                except Exception as e:
+                    print(f"Error searching venues for '{query}': {e}")
+            if all_venues:
+                print(f"Found {len(all_venues)} total venues before ranking")
+                ranked = rank_and_filter_venues(state, all_venues)
+                print(f"After ranking: {len(ranked)} venues")
+                selected = _select_new_venues(state, ranked, desired=5)
+                print(f"Selected {len(selected)} venues after deduplication")
+                formatted_venues = [format_venue_for_chat(v) for v in selected]
+                print(f"Formatted {len(formatted_venues)} venues for display")
+            else:
+                print("No venues found from Google Places or venues disabled")
         
         print(f"Returning: {len(formatted_events)} events, {len(formatted_venues)} venues")
         return text_response, formatted_events, formatted_venues
@@ -1450,7 +1514,7 @@ def rank_and_filter_venues(state: ConversationState, venues: List[Dict[str, Any]
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
+    """health"""
     fs_entry = provider_failures.get("foursquare", {})
     skip_until = fs_entry.get("skip_until")
     return {
@@ -1468,11 +1532,33 @@ async def health_check():
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest):
-    """Enhanced conversational chatbot endpoint"""
+    """chat"""
     
     # Get or create session
     session_id, state = get_or_create_session(request.session_id)
     user_message = request.message.strip()
+    
+    print(f"\n=== CHAT REQUEST ===")
+    print(f"Session ID: {session_id}")
+    print(f"Request Session ID: {request.session_id}")
+    print(f"Current Stage: {state.stage}")
+    print(f"User Message: {user_message}")
+    print(f"Current Mood: {state.mood}")
+    print(f"Active Sessions: {list(chat_sessions.keys())}")
+    
+    # Check if user is saying hello/hi - reset to greeting stage
+    greeting_words = ["hi", "hello", "hey", "start", "begin", "new"]
+    if any(word in user_message.lower() for word in greeting_words) and len(user_message.split()) <= 3:
+        # Short greeting message - reset to greeting stage
+        if state.stage != "greeting":
+            print(f"Detected greeting message, resetting from stage {state.stage} to greeting")
+            state.stage = "greeting"
+            state.mood = None
+            state.group_size = None
+            state.budget_per_person = None
+            state.seen_event_titles = []
+            state.seen_venue_keys = []
+            state.history = []
     
     # Add to history
     state.history.append({"role": "user", "content": user_message})
@@ -1499,6 +1585,9 @@ async def chat_endpoint(request: ChatRequest):
     elif state.stage == "mood":
         # Extract mood
         moods = extract_mood_from_message(user_message)
+        if not moods:
+            # Accept any freeform descriptors as custom moods
+            moods = extract_freeform_moods(user_message)
         if moods:
             state.mood = moods
             reply = f"Nice! {', '.join(moods).title()} vibes it is! 🎉 How many people are in your group?"
@@ -1543,8 +1632,11 @@ async def chat_endpoint(request: ChatRequest):
             except Exception:
                 pass
             
-            # Use GPT to recommend both events and venues
-            reply = f"Great! £{budget} per person. Let me find the perfect mix of events and venues for you... 🔍"
+            # Use GPT to recommend events (and optionally venues)
+            if ONLY_CSV_RECOMMENDATIONS:
+                reply = f"Great! £{budget} per person. Let me find the best events for you... 🔍"
+            else:
+                reply = f"Great! £{budget} per person. Let me find the perfect mix of events and venues for you... 🔍"
             
             # Generate query for GPT based on preferences
             query = f"I'm looking for a {', '.join(state.mood or ['fun'])} night out with {state.group_size} {'person' if state.group_size == 1 else 'people'}, budget £{budget} per person"
@@ -1571,7 +1663,7 @@ async def chat_endpoint(request: ChatRequest):
                 suggestions = ["Tell me more", "Show me alternatives", "Something different"]
             else:
                 reply += f"\n\n{gpt_response}"
-                suggestions = ["Show me venues", "What events are on?", "Try different mood"]
+                suggestions = ["What events are on?", "Try different mood"]
             
             state.stage = "complete"
         else:
@@ -1579,12 +1671,19 @@ async def chat_endpoint(request: ChatRequest):
             suggestions = ["£20", "£30", "£50"]
     
     elif state.stage == "complete":
+        # Check if user is asking for events/recommendations
+        asking_for_events = any(word in user_message.lower() for word in [
+            "event", "show", "what", "recommend", "suggest", "find", "options", "available", 
+            "happening", "going on", "on tonight", "to do"
+        ])
+        
         # User wants refinement or more options
-        if any(word in user_message.lower() for word in ["more", "alternative", "other", "different"]):
-            reply = "Let me find some different options for you..."
+        if any(word in user_message.lower() for word in ["more", "alternative", "other", "different"]) or asking_for_events:
+            reply = "Let me find some great options for you..."
             
-            # Use GPT again for alternative recommendations
-            query = f"Show me different options for a {', '.join(state.mood or ['fun'])} night out with {state.group_size} {'person' if state.group_size == 1 else 'people'}, budget £{state.budget_per_person} per person. I've already seen some places, show me alternatives."
+            # Use GPT again for recommendations
+            mood_str = ', '.join(state.mood) if isinstance(state.mood, list) else (state.mood or 'fun')
+            query = f"Show me {', '.join(state.mood or ['fun'])} events for {state.group_size} {'person' if state.group_size == 1 else 'people'}, budget £{state.budget_per_person} per person in Glasgow."
             
             gpt_response, events, venues = await get_combined_recommendations_with_gpt(state, query)
             
@@ -1592,19 +1691,18 @@ async def chat_endpoint(request: ChatRequest):
             recommendations = []
             if events:
                 recommendations.extend(events)
-            if venues:
+            if venues and not ONLY_CSV_RECOMMENDATIONS:
                 recommendations.extend(venues)
             
             if recommendations:
-                reply += f"\n\n{gpt_response}\n\n"
-                if events:
-                    reply += f"📅 Here are {len(events)} more event{'s' if len(events) != 1 else ''}:\n"
-                if venues:
-                    reply += f"🏢 And {len(venues)} different venue{'s' if len(venues) != 1 else ''}:"
-                suggestions = ["Perfect!", "Show me more", "Start over"]
+                reply = gpt_response  # Use GPT's formatted response directly
+                if ONLY_CSV_RECOMMENDATIONS:
+                    suggestions = ["Show me more", "Try different mood", "Start over"]
+                else:
+                    suggestions = ["Perfect!", "Show me more", "Start over"]
             else:
-                reply += "\n\nSorry, couldn't find more options right now. Try again?"
-                suggestions = ["Try again", "Start over"]
+                reply += "\n\nSorry, couldn't find any events matching your preferences right now. Try a different mood or budget?"
+                suggestions = ["Try different mood", "Start over"]
         
         elif any(word in user_message.lower() for word in ["restart", "start over", "reset", "new search"]):
             # Reset session
@@ -1616,9 +1714,26 @@ async def chat_endpoint(request: ChatRequest):
             suggestions = ["Chill", "Party", "Romantic", "Adventurous"]
         
         else:
-            # Use AI for general questions
-            reply, _, _ = await generate_ai_response(state, user_message)
-            suggestions = ["Show me more options", "Start over"]
+            # For other questions, use proper recommendations instead of generic AI
+            # This prevents the AI from making up venues
+            reply = "Let me show you what's available..."
+            mood_str = ', '.join(state.mood) if isinstance(state.mood, list) else (state.mood or 'fun')
+            query = f"Show me events based on: {user_message}"
+            
+            gpt_response, events, venues = await get_combined_recommendations_with_gpt(state, query)
+            
+            recommendations = []
+            if events:
+                recommendations.extend(events)
+            if venues and not ONLY_CSV_RECOMMENDATIONS:
+                recommendations.extend(venues)
+            
+            if recommendations:
+                reply = gpt_response
+                suggestions = ["Show me more", "Try different mood", "Start over"]
+            else:
+                reply = "I couldn't find specific events for that. Would you like to see all available options?"
+                suggestions = ["What events are on?", "Try different mood", "Start over"]
     
     else:
         # Fallback to AI
@@ -1638,6 +1753,12 @@ async def chat_endpoint(request: ChatRequest):
         "location": state.location
     }
     
+    print(f"=== CHAT RESPONSE ===")
+    print(f"New Stage: {state.stage}")
+    print(f"New Mood: {state.mood}")
+    print(f"Reply: {reply[:100]}...")
+    print(f"Suggestions: {suggestions}")
+    
     return ChatResponse(
         reply=reply,
         timestamp=datetime.utcnow().isoformat(),
@@ -1647,9 +1768,9 @@ async def chat_endpoint(request: ChatRequest):
         session_id=session_id
     )
 
-# -------------------------------------------------------------------------
+# api
 # LIVE EVENTS ENDPOINT
-# -------------------------------------------------------------------------
+# api
 
 class EventsRequest(BaseModel):
     category: Optional[str] = None
@@ -1673,9 +1794,7 @@ class EventsListResponse(BaseModel):
 
 @app.post("/api/events/live", response_model=EventsListResponse)
 async def get_live_events(request: EventsRequest):
-    """
-    Get live events in Glasgow from cached CSV data (parsed once daily)
-    """
+    """events"""
     try:
         # Use cached data instead of parsing every time
         all_events = event_scraper.get_events_cached(force_refresh=False)
@@ -1771,7 +1890,19 @@ async def refresh_events_cache():
         print(f"Error refreshing cache: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to refresh cache: {str(e)}")
 
-# -------------------------------------------------------------------------
+@app.get("/api/recommendations/marquee")
+async def get_marquee_recommendations():
+    """Return curated marquee recommendations from recent events"""
+    try:
+        all_events = event_scraper.get_events_cached(force_refresh=False)
+        # Take up to 20 recent events and format as "title @ venue"
+        items = [f"{e['title']} @ {e['venue']}" for e in all_events[:20]]
+        return {"items": items}
+    except Exception as e:
+        print(f"Error fetching marquee recommendations: {e}")
+        return {"items": []}
+
+# api
 
 if __name__ == "__main__":
     import uvicorn

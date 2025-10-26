@@ -1,0 +1,21 @@
+{
+  "name": "nightout-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "4.3.3",
+    "@types/react": "18.2.66",
+    "@types/react-dom": "18.2.22",
+    "typescript": "5.6.3",
+    "vite": "5.4.10"
+  }
+}

@@ -1,7 +1,4 @@
-"""
-Event Scraper for What's On Glasgow
-Parses live events from https://www.whatsonglasgow.co.uk/events/
-"""
+"""scraper"""
 
 import re
 import os
@@ -15,12 +12,13 @@ from bs4 import BeautifulSoup
 
 
 class GlasgowEventScraper:
-    """Scrapes and parses events from What's On Glasgow website"""
+    """scraper"""
     
     BASE_URL = "https://www.whatsonglasgow.co.uk"
     EVENTS_URL = f"{BASE_URL}/events/"
     CACHE_FILE = "events_cache.csv"
     CACHE_MAX_AGE_HOURS = 24
+    MAX_PAGES = 5  # Try up to 5 pages of listings
     # Canonical top-level categories (lowercase) - match site structure
     CATEGORY_MAP = {
         # Direct mappings for site's actual categories
@@ -78,7 +76,7 @@ class GlasgowEventScraper:
         self.debug = str(os.getenv("EVENT_SCRAPER_DEBUG", "")).strip().lower() in {"1", "true", "yes", "on"}
     
     def fetch_events_page(self, url: Optional[str] = None) -> str:
-        """Fetch the events page HTML"""
+        """fetch"""
         target_url = url or self.EVENTS_URL
         print(f"Fetching: {target_url}")
         
@@ -91,7 +89,7 @@ class GlasgowEventScraper:
             return ""
     
     def parse_event_date(self, date_str: str) -> Optional[str]:
-        """Parse and normalize event date strings"""
+        """date"""
         if not date_str:
             return None
         
@@ -111,7 +109,7 @@ class GlasgowEventScraper:
         return date_str
     
     def clean_text(self, text: str) -> str:
-        """Clean and normalize text content"""
+        """clean"""
         if not text:
             return ""
         
@@ -120,9 +118,43 @@ class GlasgowEventScraper:
         # Remove leading/trailing whitespace
         text = text.strip()
         return text
+
+    def _extract_image_src(self, img) -> Optional[str]:
+        """image"""
+        if not img:
+            return None
+        # Prefer lazy-loading attributes first
+        for attr in [
+            'data-src', 'data-original', 'data-lazy-src', 'data-large_image', 'data-image',
+        ]:
+            src = img.get(attr)
+            if src:
+                return src
+        # Try srcset (pick a candidate containing 800x600 if available, else first URL)
+        srcset = img.get('srcset')
+        if srcset:
+            # split by comma, take URL part before size descriptor
+            candidates = [s.strip().split(' ')[0] for s in srcset.split(',') if s.strip()]
+            # Prefer an 800x600 upload
+            for c in candidates:
+                if '/uploads/800x600/' in c:
+                    return c
+            if candidates:
+                return candidates[0]
+        # Fallback to standard src
+        return img.get('src')
+
+    def _is_good_image_url(self, src: str) -> bool:
+        """image"""
+        if not src:
+            return False
+        s = src.lower()
+        if 'placeholder' in s or 'logo' in s:
+            return False
+        return '/uploads/' in s
     
     def extract_event_category(self, text: str) -> Optional[str]:
-        """Extract category from event title or description"""
+        """category"""
         # Categories typically appear as uppercase tags
         category_pattern = r'\b([A-Z\s&]+)$'
         match = re.search(category_pattern, text)
@@ -134,7 +166,7 @@ class GlasgowEventScraper:
         return None
 
     def fetch_event_detail(self, event_url: str) -> str:
-        """Fetch and cache individual event detail page HTML."""
+        """detail"""
         if not event_url:
             return ""
         if event_url in self._detail_cache:
@@ -165,15 +197,7 @@ class GlasgowEventScraper:
         return s[:1].upper() + s[1:]
 
     def parse_categories_from_detail(self, html: str) -> List[str]:
-        """Parse categories from an event detail page.
-
-        Strategy: Look for the FIRST few /events/<cat>/ links that appear
-        BEFORE the main navigation menu. These are typically breadcrumb or
-        category badge links specific to this event.
-        
-        The main nav menu will have ALL categories, but event-specific category
-        links appear earlier in the DOM, near the event title/metadata.
-        """
+        """categories"""
         if not html:
             return []
         
@@ -185,88 +209,106 @@ class GlasgowEventScraper:
             'btn btn-sm mb-1',
             'class="btn btn-sm'
         ]
-        nav_start_pos = len(html)
+        
+        nav_start_idx = len(html)
         for marker in nav_markers:
-            pos = html.find(marker)
-            if pos != -1 and pos < nav_start_pos:
-                nav_start_pos = pos
+            idx = html.find(marker)
+            if idx > 0 and idx < nav_start_idx:
+                nav_start_idx = idx
         
-        # Only search HTML before navigation menu
-        search_html = html[:nav_start_pos]
+        # Extract categories only from the part before navigation
+        pre_nav_html = html[:nav_start_idx]
         
-        # Extract category tokens from event-specific section
-        import re
-        seen_tokens = []
-        skip_tokens = ('all-events', 'this-weekend', 'burns-night', 'february-half-term', 
-                       'valentines', 'easter-holiday', 'summer-holiday', 'october-half-term',
-                       'halloween', 'bonfire-night', 'christmas', 'hogmanay', 
-                       "what's-on", "what's-on-today", 'today')
-        
-        for match in re.finditer(r'href=["\']?[^"\']*?/events/([^/?#"\'>]+)/?["\']?', search_html, re.IGNORECASE):
-            token = match.group(1).strip().lower().replace('_', '-').replace(' ', '-')
-            # Skip generic/nav tokens
-            if token in skip_tokens:
-                continue
-            if token not in seen_tokens:
-                seen_tokens.append(token)
-            # Take first few unique tokens (event-specific)
-            if len(seen_tokens) >= 5:
-                break
-        
-        if self.debug:
-            try:
-                print(f"    [detail parse] Navigation menu starts at position: {nav_start_pos}")
-                print(f"    [detail parse] Input HTML length: {len(html)} bytes")
-                print(f"    [detail parse] seen_tokens: {seen_tokens}")
-            except Exception:
-                pass
-        
-        # Map tokens to canonical categories
-        mapped_count = 0
-        for token in seen_tokens:
-            canon = self.CATEGORY_MAP.get(token)
-            if canon:
+        # Find /events/<category>/ links
+        for match in re.finditer(r'href="([^"]*?/events/([^/?"#]+)/[^"]*)"', pre_nav_html):
+            full_href, cat_token = match.group(1), match.group(2)
+            # Map to canonical form
+            cat_token_clean = cat_token.strip().lower().replace('_', '-').replace(' ', '-')
+            canon = self.CATEGORY_MAP.get(cat_token_clean)
+            if canon and len(cats) < 5:  # limit to first 5 category links
                 cats.add(canon)
-                mapped_count += 1
         
-        if self.debug:
-            try:
-                print(f"    [detail parse] mapped {mapped_count} tokens to categories: {sorted(cats)}")
-            except Exception:
-                pass
+        return list(cats)
+    
+    def parse_image_from_detail(self, html: str) -> Optional[str]:
+        """image"""
+        if not html:
+            return None
         
-        # Meta section fallback
         try:
             soup = BeautifulSoup(html, 'html.parser')
-            meta = soup.find('meta', attrs={'property': 'article:section'})
-            if meta and meta.get('content'):
-                token = self._normalize_category(meta['content'])
-                if token:
-                    t = token.lower().replace(' & ', ' and ').replace(' ', '-')
-                    canon = self.CATEGORY_MAP.get(t)
-                    if canon:
-                        cats.add(canon)
-        except Exception:
-            pass
+            
+            # Strategy 1: Look for main event image (common patterns)
+            # Try hero/featured image first
+            for selector in [
+                'img.event-image',
+                'img.hero-image', 
+                '.event-details img',
+                '.event-header img',
+                'article img',
+                '.main-image img'
+            ]:
+                img = soup.select_one(selector)
+                if img:
+                    src = self._extract_image_src(img)
+                    if src and self._is_good_image_url(src):
+                        # Prefer explicit 800x600 if available in URL
+                        return self._make_absolute_url(src)
+            
+            # Strategy 2: Find any large image (not placeholder)
+            all_imgs = soup.find_all('img')
+            for img in all_imgs:
+                src = self._extract_image_src(img)
+                if src and self._is_good_image_url(src) and ('/uploads/800x600/' in src or '800x600' in src or '/uploads/' in src):
+                    return self._make_absolute_url(src)
+            
+            # Strategy 3: Any non-placeholder image
+            for img in all_imgs:
+                src = self._extract_image_src(img)
+                if src and self._is_good_image_url(src):
+                    return self._make_absolute_url(src)
+                    
+        except Exception as e:
+            if self.debug:
+                print(f"Error parsing image from detail: {e}")
         
-        # Return up to 3 sorted categories
-        if cats:
-            return sorted(cats)[:3]
-        return []
+        return None
     
+    def _make_absolute_url(self, url: str) -> str:
+        """url"""
+        if url.startswith('//'):
+            return 'https:' + url
+        elif url.startswith('/'):
+            return self.BASE_URL + url
+        elif url.startswith('http'):
+            return url
+        return url
+
     def parse_events_from_html(self, html: str) -> List[Dict]:
-        """Parse events from the events listing page HTML"""
+        """parse"""
         if not html:
             return []
         
         soup = BeautifulSoup(html, 'html.parser')
-        
-        # Find all event links on the page
+
+        # Find all event links on the page. Many cards wrap the whole tile in an <a>,
+        # and additional nested anchors (like category badges) may also point to the
+        # same event URL. We'll start broad, then filter aggressively.
         event_links = soup.find_all('a', href=re.compile(r'/event/\d+'))
-        
+
         events = []
         print(f"Found {len(event_links)} event links")
-        
+
+        # Known category labels we should ignore if they appear as standalone link text
+        known_category_labels = set(self.CATEGORY_MAP.values())
+        # Include also human-readable forms (spaces instead of dashes)
+        known_category_labels.update({c.replace('-', ' ') for c in self.CATEGORY_MAP.values()})
+        # Site-specific section badges we observed that are not actual event titles
+        known_category_labels.update({
+            'weddings', 'charity and fundraiser', 'halloween', 'christmas',
+            'quiz night', 'pet', 'gardening', 'glasgow 850', 'days out', 'nights out'
+        })
+
         for link in event_links:
             try:
                 # Extract URL
@@ -274,12 +316,22 @@ class GlasgowEventScraper:
                 if not event_url.startswith('http'):
                     event_url = self.BASE_URL + event_url
         
-                # Extract title from the link text or nested h4/h3
+                # Extract title ONLY from nested h3/h4 within the card title area.
+                # Fallback to link text as a last resort, but ignore plain category labels.
                 title_elem = link.find(['h4', 'h3'])
+                if not title_elem:
+                    # Try to get the title from the parent card instead of the badge link
+                    maybe_parent = link.find_parent(['div', 'article', 'section'])
+                    if maybe_parent:
+                        title_elem = maybe_parent.find(['h4', 'h3'])
                 if title_elem:
                     title = self.clean_text(title_elem.get_text())
                 else:
                     title = self.clean_text(link.get_text())
+                    # If fallback title matches a category label like "Music" or similar, skip it.
+                    norm_title = title.strip().lower()
+                    if norm_title in known_category_labels:
+                        continue
                 
                 # Skip if title is empty or just "READ MORE"
                 if not title or title == "READ MORE":
@@ -300,8 +352,8 @@ class GlasgowEventScraper:
                     # Look for event image
                     img_elem = parent.find('img')
                     if img_elem:
-                        img_src = img_elem.get('src') or img_elem.get('data-src')
-                        if img_src:
+                        img_src = self._extract_image_src(img_elem)
+                        if img_src and self._is_good_image_url(img_src):
                             # Make absolute URL if relative
                             if img_src.startswith('//'):
                                 image_url = 'https:' + img_src
@@ -352,6 +404,12 @@ class GlasgowEventScraper:
                     except Exception:
                         pass
                 
+                # Heuristic guard: if we didn't find any typical metadata from the card
+                # and the link didn't contain a proper title element, it's likely a badge.
+                # Skip such entries to avoid rows like "Music/Comedy" with TBA fields.
+                if (not title_elem) and (not date) and (not venue) and (not description) and (not image_url):
+                    continue
+
                 # Create event object
                 event = {
                     'title': title,
@@ -369,6 +427,14 @@ class GlasgowEventScraper:
                     detail_cats = self.parse_categories_from_detail(detail_html)
                     for c in detail_cats:
                         categories.add(c)
+                    
+                    # Also extract better image from detail page if listing image is invalid or low quality
+                    if detail_html and (not image_url or 'placeholder' in (image_url or '').lower() or 'logo' in (image_url or '').lower() or '/uploads/800x600/' not in (image_url or '')):
+                        better_image = self.parse_image_from_detail(detail_html)
+                        if better_image:
+                            image_url = better_image
+                            event['image_url'] = image_url
+                    
                     # Debug: also collect raw tokens from detail anchors
                     if self.debug and detail_html:
                         try:
@@ -411,37 +477,83 @@ class GlasgowEventScraper:
         return events
     
     def deduplicate_events(self, events: List[Dict]) -> List[Dict]:
-        """Remove duplicate events based on title and URL"""
-        seen = set()
-        unique_events = []
-        
-        for event in events:
-            # Create a unique key from title and URL
-            key = (event['title'], event['url'])
-            
-            if key not in seen:
-                seen.add(key)
-                unique_events.append(event)
-        
-        return unique_events
+        """dedupe"""
+        def score(e: Dict) -> int:
+            s = 0
+            title = (e.get('title') or '').strip()
+            desc = (e.get('description') or '').strip()
+            date = (e.get('date') or '').strip()
+            venue = (e.get('venue') or '').strip()
+            img = (e.get('image_url') or '').lower()
+            # Title richness
+            if len(title) >= 12:
+                s += 3
+            elif len(title) >= 6:
+                s += 1
+            # Non-placeholder description
+            if desc and desc.lower() != 'no description available':
+                s += 2
+            # Concrete date/venue
+            if date and date.lower() != 'date tba':
+                s += 1
+            if venue and venue.lower() != 'venue tba':
+                s += 1
+            # Prefer 800x600 uploads
+            if '/uploads/800x600/' in img:
+                s += 1
+            # Prefer titles with multiple words
+            if ' ' in title.strip():
+                s += 1
+            return s
+
+        by_url: Dict[str, Dict] = {}
+        for e in events:
+            url = e.get('url') or ''
+            if not url:
+                continue
+            if url not in by_url:
+                by_url[url] = e
+            else:
+                if score(e) > score(by_url[url]):
+                    by_url[url] = e
+
+        return list(by_url.values())
     
     def get_todays_events(self) -> List[Dict]:
-        """Fetch and parse today's events from the website"""
+        """events"""
         print("Fetching today's events from What's On Glasgow...")
+
+        all_events: List[Dict] = []
+        seen_urls: Set[str] = set()
+        for page in range(1, self.MAX_PAGES + 1):
+            url = self.EVENTS_URL if page == 1 else f"{self.EVENTS_URL}?page={page}"
+            html = self.fetch_events_page(url)
+            if not html:
+                if self.debug:
+                    print(f"[Scraper] No HTML for page {page}, stopping pagination")
+                break
+            page_events = self.parse_events_from_html(html)
+            # Stop if page produced nothing new
+            new_count = 0
+            for e in page_events:
+                u = e.get('url')
+                if not u or u in seen_urls:
+                    continue
+                seen_urls.add(u)
+                all_events.append(e)
+                new_count += 1
+            print(f"[Scraper] Page {page}: {len(page_events)} parsed, {new_count} new")
+            if new_count == 0:
+                break
         
-        html = self.fetch_events_page()
-        if not html:
-            print("Failed to fetch events page")
-            return []
-        
-        events = self.parse_events_from_html(html)
+        events = all_events
         events = self.deduplicate_events(events)
         
         print(f"Successfully parsed {len(events)} unique events")
         return events
     
     def filter_events_by_category(self, events: List[Dict], category: str) -> List[Dict]:
-        """Filter events by top-level category (supports both 'category' and 'categories')."""
+        """filter"""
         key = (category or "").strip().lower()
         if not key:
             return events
@@ -457,31 +569,52 @@ class GlasgowEventScraper:
         return out
     
     def filter_events_by_venue(self, events: List[Dict], venue: str) -> List[Dict]:
-        """Filter events by venue"""
+        """filter"""
         return [e for e in events if venue.lower() in e.get('venue', '').lower()]
     
     def filter_events_today(self, events: List[Dict]) -> List[Dict]:
-        """Filter events happening today (October 25, 2025)"""
-        today_str = "25th October 2025"
-        today_variations = ["25th October 2025", "25 October 2025", "October 25 2025"]
-        
-        filtered = []
-        for event in events:
-            date_str = event.get('date', '')
-            
-            # Check if today's date is in the date string
-            if any(today in date_str for today in today_variations):
-                filtered.append(event)
-            # Check for date ranges that include today
-            elif ' - ' in date_str:
-                # This is a simplified check - could be enhanced
-                if "October 2025" in date_str or "25" in date_str:
-                    filtered.append(event)
-        
+        """today"""
+        today = datetime.now().date()
+
+        def _strip_ordinal(d: str) -> str:
+            return re.sub(r"(\d{1,2})(st|nd|rd|th)", r"\1", d)
+
+        def _parse_date(d: str) -> Optional[datetime]:
+            try:
+                return datetime.strptime(_strip_ordinal(d.strip()), "%d %B %Y")
+            except Exception:
+                return None
+
+        filtered: List[Dict] = []
+        for e in events:
+            ds = (e.get('date') or '').strip()
+            if not ds:
+                continue
+            # Normalize leading 'Selected dates between'
+            ds_norm = re.sub(r"^Selected dates between\s+", "", ds, flags=re.I)
+            # Split possible ranges
+            if ' - ' in ds_norm:
+                parts = [p.strip() for p in ds_norm.split(' - ', 1)]
+                start = _parse_date(parts[0])
+                end = _parse_date(parts[1]) if len(parts) > 1 else None
+                if start and end:
+                    if start.date() <= today <= end.date():
+                        filtered.append(e)
+                    continue
+                # Fallback: if parsing failed but month/year match, do lenient contains
+                if str(today.year) in ds_norm and today.strftime('%B') in ds_norm:
+                    filtered.append(e)
+                continue
+            else:
+                single = _parse_date(ds_norm)
+                if single and single.date() == today:
+                    filtered.append(e)
+                continue
+
         return filtered
     
     def _is_cache_valid(self) -> bool:
-        """Check if cache file exists and is less than CACHE_MAX_AGE_HOURS old"""
+        """cache"""
         cache_path = Path(self.CACHE_FILE)
         if not cache_path.exists():
             return False
@@ -495,7 +628,7 @@ class GlasgowEventScraper:
             return False
     
     def save_events_to_csv(self, events: List[Dict]) -> None:
-        """Save events to CSV cache file"""
+        """save"""
         try:
             with open(self.CACHE_FILE, 'w', newline='', encoding='utf-8') as f:
                 if not events:
@@ -525,7 +658,7 @@ class GlasgowEventScraper:
             print(f"Error saving events to CSV: {e}")
     
     def load_events_from_csv(self) -> List[Dict]:
-        """Load events from CSV cache file"""
+        """load"""
         try:
             events = []
             with open(self.CACHE_FILE, 'r', newline='', encoding='utf-8') as f:
@@ -557,7 +690,7 @@ class GlasgowEventScraper:
             return []
     
     def get_events_cached(self, force_refresh: bool = False) -> List[Dict]:
-        """Get events using CSV cache (parse only if cache invalid or force_refresh=True)"""
+        """cache"""
         # Check cache validity
         if not force_refresh and self._is_cache_valid():
             print(f"Using cached events (age < {self.CACHE_MAX_AGE_HOURS}h)")
@@ -577,7 +710,7 @@ class GlasgowEventScraper:
         return events
     
     def format_event_for_display(self, event: Dict) -> str:
-        """Format event as a readable string"""
+        """format"""
         return f"""
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📅 {event['title']}
@@ -590,17 +723,20 @@ class GlasgowEventScraper:
 """
     
     def close(self):
-        """Close HTTP client"""
+        """close"""
         self.http_client.close()
 
 
 def main():
-    """Main function to demonstrate scraper usage"""
+    """main"""
     scraper = GlasgowEventScraper()
     
     try:
-        # Get all events
-        all_events = scraper.get_todays_events()
+        # Build/refresh cache first so results are written to disk
+        print("\n[Scraper] Building cache...")
+        all_events = scraper.get_events_cached(force_refresh=True)
+        cache_path = str(Path(scraper.CACHE_FILE).resolve())
+        print(f"[Scraper] Cache written to: {cache_path}")
         
         # Filter for today's events
         todays_events = scraper.filter_events_today(all_events)
