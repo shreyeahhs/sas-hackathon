@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { fetchEvents, fetchMarqueeRecommendations, fetchWeather, type WeatherData } from './api'
 import type { EventItem } from './types'
 import { ResultsPage } from './components/ResultsPage'
@@ -26,6 +26,13 @@ export const App: React.FC = () => {
   // Weather data
   const [weather, setWeather] = useState<WeatherData | null>(null)
 
+  // FAB drag state
+  const [fabPosition, setFabPosition] = useState({ x: 0, y: 0 })
+  const [fabDragging, setFabDragging] = useState(false)
+  const [fabDragOffset, setFabDragOffset] = useState({ x: 0, y: 0 })
+  const [fabMoved, setFabMoved] = useState(false)
+  const fabStartRef = useRef<{ x: number; y: number } | null>(null)
+
   // Fetch weather on mount
   useEffect(() => {
     (async () => {
@@ -33,6 +40,63 @@ export const App: React.FC = () => {
       setWeather(weatherData)
     })()
   }, [])
+
+  // FAB drag handlers
+  const handleFabMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setFabDragging(true)
+    const target = e.currentTarget as HTMLElement
+    const rect = target.getBoundingClientRect()
+    setFabDragOffset({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    })
+    setFabMoved(false)
+    fabStartRef.current = { x: e.clientX, y: e.clientY }
+  }
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!fabDragging) return
+      setFabPosition({
+        x: e.clientX - fabDragOffset.x,
+        y: e.clientY - fabDragOffset.y
+      })
+      if (!fabMoved && fabStartRef.current) {
+        const dx = e.clientX - fabStartRef.current.x
+        const dy = e.clientY - fabStartRef.current.y
+        if (Math.sqrt(dx * dx + dy * dy) > 5) {
+          setFabMoved(true)
+        }
+      }
+    }
+
+    const handleMouseUp = () => {
+      setFabDragging(false)
+    }
+
+    if (fabDragging) {
+      document.addEventListener('mousemove', handleMouseMove)
+      document.addEventListener('mouseup', handleMouseUp)
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove)
+        document.removeEventListener('mouseup', handleMouseUp)
+      }
+    }
+  }, [fabDragging, fabDragOffset])
+
+  const handleFabClick = (e: React.MouseEvent) => {
+    // If the user dragged (moved beyond threshold), suppress this click
+    if (fabMoved) {
+      e.preventDefault()
+      e.stopPropagation()
+      // Reset moved shortly after so future clicks work
+      setTimeout(() => setFabMoved(false), 50)
+      return
+    }
+    setShowAI(true)
+  }
 
   // Debounce query changes
   useEffect(() => {
@@ -132,8 +196,21 @@ export const App: React.FC = () => {
       <button
         aria-label="Open Scott"
         className="chat-fab"
-        style={{ background: 'transparent', borderRadius: 0, width: 64, height: 64, padding: 0 }}
-        onClick={() => setShowAI(true)}
+        style={{ 
+          background: 'transparent', 
+          borderRadius: 0, 
+          width: 64, 
+          height: 64, 
+          padding: 0,
+          position: 'fixed',
+          left: (fabPosition.x !== 0 || fabPosition.y !== 0) ? fabPosition.x : undefined,
+          top: (fabPosition.x !== 0 || fabPosition.y !== 0) ? fabPosition.y : undefined,
+          bottom: (fabPosition.x !== 0 || fabPosition.y !== 0) ? undefined : 24,
+          right: (fabPosition.x !== 0 || fabPosition.y !== 0) ? undefined : 24,
+          cursor: fabDragging ? 'grabbing' : 'grab'
+        }}
+        onMouseDown={handleFabMouseDown}
+        onClick={handleFabClick}
         title="Scott"
       >
         <img src={aiAvatar} alt="AI" style={{ width: '100%', height: '100%', borderRadius: 0, objectFit: 'cover', pointerEvents: 'none' }} />

@@ -21,6 +21,12 @@ export const AIChatInterface: React.FC<Props> = ({ onClose }) => {
   const [sessionId] = useState(() => `session-${Date.now()}-${Math.random().toString(36).slice(2)}`)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [initialized, setInitialized] = useState(false)
+  
+  // Drag state
+  const [position, setPosition] = useState({ x: 0, y: 0 })
+  const [isDragging, setIsDragging] = useState(false)
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
+  const modalRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -29,6 +35,40 @@ export const AIChatInterface: React.FC<Props> = ({ onClose }) => {
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  // Drag handlers
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!modalRef.current) return
+    const rect = modalRef.current.getBoundingClientRect()
+    setIsDragging(true)
+    setDragOffset({
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
+    })
+  }
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging) return
+      setPosition({
+        x: e.clientX - dragOffset.x,
+        y: e.clientY - dragOffset.y
+      })
+    }
+
+    const handleMouseUp = () => {
+      setIsDragging(false)
+    }
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove)
+      document.addEventListener('mouseup', handleMouseUp)
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove)
+        document.removeEventListener('mouseup', handleMouseUp)
+      }
+    }
+  }, [isDragging, dragOffset])
 
   // Initialize the conversation with a greeting from the backend
   useEffect(() => {
@@ -117,9 +157,24 @@ export const AIChatInterface: React.FC<Props> = ({ onClose }) => {
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal chat-modal glassmorphism animate-scale-in shadow-bubble" onClick={e => e.stopPropagation()}>
+      <div 
+        ref={modalRef}
+        className="modal chat-modal glassmorphism animate-scale-in shadow-bubble" 
+        onClick={e => e.stopPropagation()}
+        style={{
+          position: 'fixed',
+          left: position.x || '50%',
+          top: position.y || '50%',
+          transform: position.x ? 'none' : 'translate(-50%, -50%)',
+          cursor: isDragging ? 'grabbing' : 'default'
+        }}
+      >
         {/* Header */}
-        <div className="chat-header gradient-secondary">
+        <div 
+          className="chat-header gradient-secondary" 
+          onMouseDown={handleMouseDown}
+          style={{ cursor: 'grab', userSelect: 'none' }}
+        >
           <div className="chat-title">
             <img src={aiAvatar} alt="Scott" style={{ width: 28, height: 28, borderRadius: 8, objectFit: 'cover', border: '1px solid #2b3242' }} />
             <div>
