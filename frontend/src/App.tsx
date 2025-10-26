@@ -3,6 +3,7 @@ import { fetchEvents, fetchMarqueeRecommendations, fetchWeather, type WeatherDat
 import type { EventItem } from './types'
 import { ResultsPage } from './components/ResultsPage'
 import { AIChatInterface } from './components/AIChatInterface'
+import aiAvatar from '../image-removebg-preview (1).png'
 import { calculateNightOutScore, getScoreBadge } from './nightOutScore'
 
 const PAGE_SIZE = 12
@@ -129,13 +130,13 @@ export const App: React.FC = () => {
 
       {/* Floating fun chat FAB */}
       <button
-        aria-label="Open AI chat"
-        className="chat-fab gradient-primary shadow-bubble animate-glow-pulse"
+        aria-label="Open Scott"
+        className="chat-fab"
+        style={{ background: 'transparent', borderRadius: 0, width: 64, height: 64, padding: 0 }}
         onClick={() => setShowAI(true)}
-        title="NightOut Assistant"
+        title="Scott"
       >
-        {/* simple message bubble glyph */}
-        💬
+        <img src={aiAvatar} alt="AI" style={{ width: '100%', height: '100%', borderRadius: 0, objectFit: 'cover', pointerEvents: 'none' }} />
       </button>
     </div>
   )

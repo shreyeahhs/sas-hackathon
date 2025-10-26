@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
+import aiAvatar from '../../image-removebg-preview (1).png'
 
 type Message = {
   role: 'assistant' | 'user'
@@ -49,7 +50,7 @@ export const AIChatInterface: React.FC<Props> = ({ onClose }) => {
             const data = await res.json()
             const assistantMsg: Message = {
               role: 'assistant',
-              content: data.reply || "Hi! I'm your NightOut planner.",
+              content: data.reply || "Hi! I'm Scott.",
               recommendations: data.recommendations || [],
               suggestions: data.suggestions || []
             }
@@ -91,7 +92,7 @@ export const AIChatInterface: React.FC<Props> = ({ onClose }) => {
       console.log(`[CHAT] Response:`, data)
       const assistantMsg: Message = {
         role: 'assistant',
-        content: data.reply || "I'm here to help!",
+        content: data.reply || "Scott here to help!",
         recommendations: data.recommendations || [],
         suggestions: data.suggestions || []
       }
@@ -120,9 +121,14 @@ export const AIChatInterface: React.FC<Props> = ({ onClose }) => {
         {/* Header */}
         <div className="chat-header gradient-secondary">
           <div className="chat-title">
-            {/* simple sparkles glyph to avoid icon deps */}
-            <span style={{ color: 'var(--brand2)' }}>✦</span>
-            <span>NightOut Assistant</span>
+            <img src={aiAvatar} alt="Scott" style={{ width: 28, height: 28, borderRadius: 8, objectFit: 'cover', border: '1px solid #2b3242' }} />
+            <div>
+              <div style={{ fontWeight: 800 }}>Scott</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--muted)' }}>
+                <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: 999, background: '#22c55e' }} />
+                <span>Glasgow NightOut AI</span>
+              </div>
+            </div>
           </div>
           <div className="chat-actions">
             <button className="button ghost" onClick={onClose} title="Close">×</button>

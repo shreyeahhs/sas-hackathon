@@ -66,17 +66,7 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
               </div>
               <div className="brand-tagline">Where plans and pints meet.</div>
             </div>
-            <div style={{ marginLeft: 'auto' }}>
-              <button
-                className="button ai-button"
-                type="button"
-                onClick={() => onOpenAI && onOpenAI()}
-                title="Open AI planner"
-              >
-                <span className="ai-icon">✨</span>
-                AI Mode
-              </button>
-            </div>
+            {/* removed top AI button */}
           </div>
         </div>
       </div>

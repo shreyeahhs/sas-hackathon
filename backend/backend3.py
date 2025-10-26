@@ -1222,7 +1222,7 @@ async def get_combined_recommendations_with_gpt(state: ConversationState, user_q
         already_shown = f"\n\nEvents ALREADY SHOWN (do NOT recommend these again):\n" + "\n".join(f"- {title}" for title in state.seen_event_titles[-10:])  # Show last 10
     
     if ONLY_CSV_RECOMMENDATIONS:
-        system_prompt = f"""You are a Glasgow nightlife and events expert. You have access to:
+        system_prompt = f"""You are a Glasgow nightlife and events expert. Speak in a light Scottish/Glaswegian tone (use wee, aye, cheers), keep it clear and not overdone; avoid heavy phonetic spelling. You have access to:
 1. Live events happening today in Glasgow
 
 User preferences:
@@ -1244,7 +1244,7 @@ Format your response as JSON:
 
 Keep recommendations relevant to their mood, budget, and group size. Recommend 2-4 events maximum."""
     else:
-        system_prompt = f"""You are a Glasgow nightlife and events expert. You have access to:
+        system_prompt = f"""You are a Glasgow nightlife and events expert. Speak in a light Scottish/Glaswegian tone (use wee, aye, cheers), keep it clear and not overdone; avoid heavy phonetic spelling. You have access to:
 1. Live events happening today in Glasgow
 2. Venue search capabilities via Google Places API
 
@@ -1398,6 +1398,7 @@ async def generate_ai_response(state: ConversationState, user_message: str) -> t
     # Build a concise system prompt capturing known facts
     system_prompt = (
         "You are a friendly nightlife assistant for Glasgow. "
+        "Speak in a light Scottish/Glaswegian tone (use wee, aye, cheers), but keep it clear and professional; avoid heavy phonetic spelling. "
         f"Current stage: {state.stage}. "
         f"Known facts -> Mood: {state.mood or 'n/a'}, Group size: {state.group_size or 'n/a'}, "
         f"Budget/pp: £{state.budget_per_person or 'n/a'}, Location: {state.location}, Time: {state.start_time}. "
@@ -1577,8 +1578,8 @@ async def chat_endpoint(request: ChatRequest):
     # STATE MACHINE: Process based on conversation stage
     
     if state.stage == "greeting":
-        # Initial greeting
-        reply = "Hey! 🌃 I'm here to help you plan an amazing night out in Glasgow. What's your vibe tonight? Are you feeling chill, ready to party, romantic, or adventurous?"
+        # greeting
+        reply = "Hiya mate! I'm Scott. 🌃 Let's plan an amazing night out in Glasgow. What's your vibe tonight? Chill, party, romantic, or adventurous?"
         suggestions = ["Chill", "Party", "Romantic", "Adventurous"]
         state.stage = "mood"
     

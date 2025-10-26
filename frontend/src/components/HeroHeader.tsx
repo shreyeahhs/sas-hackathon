@@ -17,7 +17,7 @@ export const HeroHeader: React.FC<HeroHeaderProps> = ({ onOpenAI }) => {
           className="button hero-cta gradient-primary"
           onClick={() => onOpenAI && onOpenAI()}
         >
-          Plan Your Night Out with AI
+          Plan Your Night Out with Scott
         </button>
       </div>
     </div>
